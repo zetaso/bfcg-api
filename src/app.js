@@ -9,11 +9,21 @@ dotenv.config();
 
 const app = express();
 
-app.use(logger("dev"));
-app.use(cors());
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
+app.use(logger("dev"));
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "*"
+      // add frontend vercel url
+    ],
+    credentials: true,
+  })
+);
 
 app.use("/api/v1", apiRoutes);
 
