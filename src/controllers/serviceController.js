@@ -54,30 +54,3 @@ export const getService= async (req, res) => {
     return res.status(500).json({ success: false, error: 'Internal server error while fetching service detail.' });
   }
 };
-
-export const createServiceHighlight = async (res, req) => {
-  try {
-    const {
-      service_id,
-      item_type,
-      title,
-      content,
-      display_order,
-    } = req.body;
-    const { data, error } = await supabase
-      .from("site_settings")
-      .insert([{
-        service_id,
-        item_type,
-        title,
-        content,
-        display_order,
-      }])
-      .select();
-
-    if (error) throw error;
-    res.status(201).json(data[0]);
-  } catch (err) {
-    next(err);
-  }
-}
