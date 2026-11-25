@@ -18,6 +18,11 @@ import {
   createHighlight,
   updateHighlight,
   deleteHighlight,
+  listTestimonials,
+  createTestimonial,
+  updateTestimonial,
+  deleteTestimonial,
+  reorderTestimonials,
   uploadImage,
 } from "../controllers/adminController.js";
 
@@ -54,6 +59,12 @@ admin.delete("/services/:id", deleteService);
 admin.post("/services/:id/highlights", createHighlight);
 admin.put("/highlights/:id", updateHighlight);
 admin.delete("/highlights/:id", deleteHighlight);
+
+admin.get("/testimonials", listTestimonials);
+admin.post("/testimonials", createTestimonial);
+admin.put("/testimonials/order", reorderTestimonials);
+admin.put("/testimonials/:id", updateTestimonial);
+admin.delete("/testimonials/:id", deleteTestimonial);
 
 admin.post("/upload", upload.single("image"), uploadImage);
 

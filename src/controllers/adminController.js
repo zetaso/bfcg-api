@@ -249,6 +249,90 @@ export const deleteHighlight = async (req, res, next) => {
   }
 };
 
+// ── Testimonials ───────────────────────────────────────────────────────────────
+
+const TESTIMONIAL_FIELDS = ["client_name", "client_role", "quote", "service_id", "is_featured", "display_order"];
+
+const checkTestimonial = (row, partial) => {
+  if ((!partial || row.client_name !== undefined) && !row.client_name?.trim()) {
+    throw httpError(400, "El nombre del cliente es obligatorio.");
+  }
+  if ((!partial || row.quote !== undefined) && !row.quote?.trim()) {
+    throw httpError(400, "El testimonio es obligatorio.");
+  }
+  return nullifyEmpty(row, ["client_role", "service_id"]);
+};
+
+export const listTestimonials = async (req, res, next) => {
+  try {
+    const { data, error } = await req.db
+      .from("testimonials")
+      .select("*")
+      .order("display_order")
+      .order("created_at");
+    fromDb(error);
+    res.json({ data });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const createTestimonial = async (req, res, next) => {
+  try {
+    const row = checkTestimonial(pick(req.body, TESTIMONIAL_FIELDS), false);
+    if (row.display_order === undefined) {
+      const { data: last } = await req.db
+        .from("testimonials")
+        .select("display_order")
+        .order("display_order", { ascending: false })
+        .limit(1);
+      row.display_order = (last?.[0]?.display_order ?? 0) + 1;
+    }
+    const { data, error } = await req.db.from("testimonials").insert([row]).select();
+    fromDb(error);
+    res.status(201).json({ data: one(data, "Testimonio") });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateTestimonial = async (req, res, next) => {
+  try {
+    const row = checkTestimonial(pick(req.body, TESTIMONIAL_FIELDS), true);
+    const { data, error } = await req.db.from("testimonials").update(row).eq("id", req.params.id).select();
+    fromDb(error);
+    res.json({ data: one(data, "Testimonio") });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteTestimonial = async (req, res, next) => {
+  try {
+    const { data, error } = await req.db.from("testimonials").delete().eq("id", req.params.id).select("id");
+    fromDb(error);
+    one(data, "Testimonio");
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** Body: { ids: [id1, id2, …] } in the desired order. */
+export const reorderTestimonials = async (req, res, next) => {
+  try {
+    const ids = req.body?.ids;
+    if (!Array.isArray(ids) || ids.length === 0) throw httpError(400, "Se esperaba { ids: [...] }.");
+    const results = await Promise.all(
+      ids.map((id, i) => req.db.from("testimonials").update({ display_order: i + 1 }).eq("id", id)),
+    );
+    results.forEach(({ error }) => fromDb(error));
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+};
+
 // ── Images ─────────────────────────────────────────────────────────────────────
 
 export const uploadImage = async (req, res, next) => {
