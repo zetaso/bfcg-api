@@ -3,7 +3,8 @@ import multer from "multer";
 import { getTestimonials } from "../controllers/testimonialController.js";
 import { getSiteSettings } from "../controllers/siteSettingController.js";
 import { getServices, getService } from "../controllers/serviceController.js";
-import { login, refresh, me } from "../controllers/authController.js";
+import { login, me, logout, logoutOthers } from "../controllers/authController.js";
+import { loginRateLimit, requireTrustedOrigin } from "../middleware/security.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import {
   IMAGE_LIMITS,
@@ -36,15 +37,16 @@ router.get("/sitesettings", getSiteSettings);
 router.get("/services", getServices);
 router.get("/services/:slug", getService);
 
-// ── Auth ──
-router.post("/auth/login", login);
-router.post("/auth/refresh", refresh);
+// ── Auth ── (session lives in httpOnly cookies scoped to /api/v1/admin)
+router.post("/auth/login", requireTrustedOrigin, loginRateLimit, login);
 
 // ── Admin (signed-in admins only) ──
 const admin = Router();
-admin.use(requireAdmin);
+admin.use(requireTrustedOrigin, requireAdmin);
 
 admin.get("/me", me);
+admin.post("/logout", logout);
+admin.post("/sessions/revoke-others", logoutOthers);
 
 admin.get("/sitesettings", listSettings);
 admin.put("/sitesettings", updateSettings);

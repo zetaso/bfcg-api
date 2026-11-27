@@ -4,10 +4,15 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import apiRoutes from "./routes/apiRoutes.js";
+import { allowedOrigins } from "./middleware/security.js";
 
 dotenv.config();
 
 const app = express();
+
+// behind a hosting proxy (Railway, Render…) set TRUST_PROXY=1 so rate limiting sees the real client IP
+if (process.env.TRUST_PROXY) app.set("trust proxy", Number(process.env.TRUST_PROXY) || process.env.TRUST_PROXY);
+app.disable("x-powered-by");
 
 app.use(cookieParser());
 app.use(express.json());
@@ -15,12 +20,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(logger("dev"));
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-      "*"
-      // add frontend vercel url
-    ],
+    origin: allowedOrigins, // credentials (cookies) require an explicit list, never "*"
     credentials: true,
   })
 );
