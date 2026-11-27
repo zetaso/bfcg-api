@@ -33,7 +33,7 @@ app.get("/", (req, res) => {
 
 app.use((err, req, res, next) => {
   if (err.code === "LIMIT_FILE_SIZE") {
-    return res.status(413).json({ error: "La imagen supera el tamaño máximo de 5 MB." });
+    return res.status(413).json({ error: "La imagen supera el tamaño máximo de 20 MB." });
   }
   // errors raised on purpose carry a status and a user-facing message
   if (err.status && err.status < 500) {

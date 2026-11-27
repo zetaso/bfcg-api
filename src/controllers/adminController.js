@@ -1,3 +1,5 @@
+import sharp from "sharp";
+
 // All handlers here run behind requireAdmin and use req.db (the admin's own Supabase client),
 // so Row Level Security is the final authority on every read and write.
 
@@ -15,7 +17,10 @@ const SERVICE_FIELDS = [
 const HIGHLIGHT_FIELDS = ["item_type", "title", "content", "display_order"];
 const HIGHLIGHT_TYPES = ["benefit", "step", "faq"];
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// originals straight from a camera are often 5–15 MB; they are shrunk before storing
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_IMAGE_SIDE = 1600; // px; covers the widest on-page use (~800px) at 2x density
+const WEBP_QUALITY = 80;
 export const IMAGE_LIMITS = { fileSize: MAX_IMAGE_BYTES };
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
@@ -335,17 +340,31 @@ export const reorderTestimonials = async (req, res, next) => {
 
 // ── Images ─────────────────────────────────────────────────────────────────────
 
+/** Rotates per EXIF, fits inside MAX_IMAGE_SIDE (never enlarges) and re-encodes as WebP. */
+async function optimizeImage(buffer) {
+  try {
+    return await sharp(buffer, { failOn: "error" })
+      .rotate()
+      .resize({ width: MAX_IMAGE_SIDE, height: MAX_IMAGE_SIDE, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: WEBP_QUALITY })
+      .toBuffer();
+  } catch {
+    throw httpError(400, "No se pudo leer la imagen. Usa un archivo JPG, PNG o WebP.");
+  }
+}
+
 export const uploadImage = async (req, res, next) => {
   try {
     const file = req.file;
     if (!file) throw httpError(400, "No se recibió ninguna imagen.");
     if (!file.mimetype?.startsWith("image/")) throw httpError(400, "El archivo debe ser una imagen.");
 
-    const ext = (file.originalname.split(".").pop() || "img").toLowerCase().replace(/[^a-z0-9]/g, "");
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const optimized = await optimizeImage(file.buffer);
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`;
 
-    const { error } = await req.db.storage.from("images").upload(path, file.buffer, {
-      contentType: file.mimetype,
+    const { error } = await req.db.storage.from("images").upload(path, optimized, {
+      contentType: "image/webp",
+      cacheControl: "31536000", // file names are unique, so they can be cached for a year
     });
     fromDb(error);
 
